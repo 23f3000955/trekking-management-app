@@ -157,6 +157,21 @@ def test_register():
     return "Test user registered!"
 
 
+@app.route("/all_users")
+def all_users():
+    users = User.query.all()
+    result = []
+
+    for user in users:
+        result.append({
+            "id": user.id,
+            "email": user.email,
+            "role": user.role
+        })
+
+    return jsonify(result)
+
+
 def create_admin():
     admin = User.query.filter_by(email="admin@trek.com").first()
 
@@ -172,9 +187,25 @@ def create_admin():
         print("Admin created!")
 
 
+def create_staff():
+    staff = User.query.filter_by(email="staff1@trek.com").first()
+
+    if not staff:
+        staff = User(
+            name="Staff One",
+            email="staff1@trek.com",
+            password="staff123",
+            role="staff"
+        )
+        db.session.add(staff)
+        db.session.commit()
+        print("Staff created!")
+
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
         create_admin()
+        create_staff()
 
     app.run(debug=True)
