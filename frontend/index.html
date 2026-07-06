@@ -130,26 +130,261 @@
         </button>
     </div>
 
-    <!-- Admin Dashboard -->
-    <div v-if="currentPage === 'admin-dashboard'" class="card shadow-lg p-4 mx-auto mt-4 border-0" style="max-width: 700px; border-radius:20px;">
-        <h3 class="text-dark mb-4">Admin Dashboard</h3>
+   <!-- ================= ADMIN DASHBOARD ================= -->
 
-        <button class="btn btn-dark w-100 mb-3">
-            Add Trek
-        </button>
+<div v-if="currentPage === 'admin-dashboard'" class="container-fluid mt-4">
 
-        <button class="btn btn-primary w-100 mb-3">
-            Manage Staff
-        </button>
+    <div class="row">
 
-        <button class="btn btn-success w-100 mb-3">
-            View Bookings
-        </button>
+        <!-- Left Sidebar -->
+        <div class="col-md-3">
 
-        <button class="btn btn-secondary w-100" @click="goTo('home')">
-            Logout
-        </button>
+            <div class="card shadow">
+
+                <div class="card-header bg-dark text-white">
+                    <h4 class="text-center">Admin Panel</h4>
+                </div>
+
+                <div class="list-group list-group-flush">
+
+                    <button class="list-group-item list-group-item-action"
+                        @click="goToAdmin('dashboard')">
+                        Dashboard
+                    </button>
+
+                    <button class="list-group-item list-group-item-action"
+                        @click="goToAdmin('add-trek')">
+                        Add Trek
+                    </button>
+
+                    <button class="list-group-item list-group-item-action"
+                        @click="goToAdmin('manage-treks')">
+                        Manage Treks
+                    </button>
+
+                    <button class="list-group-item list-group-item-action"
+                        @click="goToAdmin('add-staff')">
+                        Add Staff
+                    </button>
+
+                    <button class="list-group-item list-group-item-action"
+                        @click="goToAdmin('assign-staff')">
+                        Assign Staff
+                    </button>
+
+                    <button class="list-group-item list-group-item-action"
+                        @click="goToAdmin('bookings')">
+                        View Bookings
+                    </button>
+
+                    <button class="list-group-item list-group-item-action"
+                        @click="goToAdmin('search')">
+                        Search
+                    </button>
+
+                    <button class="list-group-item list-group-item-action text-danger"
+                        @click="goTo('home')">
+                        Logout
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Right Content -->
+        <div class="col-md-9">
+
+            <!-- Dashboard -->
+            <div v-if="adminPage === 'dashboard'" class="card shadow p-4">
+
+                <h2>Welcome Admin 👋</h2>
+
+                <hr>
+
+                <div class="row">
+
+                    <div class="col-md-4">
+                        <div class="card text-center border-primary">
+                            <div class="card-body">
+                                <h5>Total Treks</h5>
+                                <h2>{{ totalTreks }}</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="card text-center border-success">
+                            <div class="card-body">
+                                <h5>Total Users</h5>
+                                <h2>0</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="card text-center border-dark">
+                            <div class="card-body">
+                                <h5>Total Bookings</h5>
+                                <h2>0</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Add Trek -->
+            <div v-if="adminPage === 'add-trek'" class="card shadow p-4">
+
+                <h2>Add New Trek</h2>
+
+                <hr>
+
+                <input
+                    class="form-control mb-3"
+                    v-model="trekName"
+                    placeholder="Trek Name">
+
+                <input
+                    class="form-control mb-3"
+                    v-model="location"
+                    placeholder="Location">
+
+                <select
+                    class="form-select mb-3"
+                    v-model="difficulty">
+
+                    <option disabled value="">Select Difficulty</option>
+                    <option>Easy</option>
+                    <option>Moderate</option>
+                    <option>Hard</option>
+
+                </select>
+
+                <input
+                    class="form-control mb-3"
+                    type="number"
+                    v-model="duration"
+                    placeholder="Duration (Days)">
+
+                <input
+                    class="form-control mb-3"
+                    type="number"
+                    v-model="availableSlots"
+                    placeholder="Available Slots">
+
+                <button
+    type="button"
+    class="btn btn-success w-100"
+    @click.prevent="addTrek">
+    Save Trek
+</button>
+
+<p class="mt-3 text-success">
+    {{ message }}
+</p>
+
+            </div>
+
+            <!-- Manage Treks -->
+            <!-- Manage Treks -->
+<div v-if="adminPage === 'manage-treks'" class="card shadow p-4">
+
+    <h2 class="mb-4">Manage Treks</h2>
+
+    <table class="table table-bordered table-hover align-middle">
+
+        <thead class="table-dark">
+
+            <tr>
+                <th>ID</th>
+                <th>Trek Name</th>
+                <th>Location</th>
+                <th>Difficulty</th>
+                <th>Slots</th>
+                <th>Status</th>
+                <th width="180">Action</th>
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            <tr v-for="trek in treks" :key="trek.id">
+
+                <td>{{ trek.id }}</td>
+                <td>{{ trek.name }}</td>
+                <td>{{ trek.location }}</td>
+                <td>{{ trek.difficulty }}</td>
+                <td>{{ trek.slots }}</td>
+                <td>{{ trek.status }}</td>
+
+                <td>
+
+                    <button
+                        class="btn btn-warning btn-sm me-2"
+                        @click="editTrek(trek)">
+                        Edit
+                    </button>
+
+                    <button
+                        class="btn btn-danger btn-sm"
+                        @click="deleteTrek(trek.id)">
+                        Delete
+                    </button>
+
+                </td>
+
+            </tr>
+
+            <tr v-if="treks.length === 0">
+
+                <td colspan="7" class="text-center">
+                    No treks available
+                </td>
+
+            </tr>
+
+        </tbody>
+
+    </table>
+
+</div>
+
+            <!-- Add Staff -->
+            <div v-if="adminPage === 'add-staff'" class="card shadow p-4">
+                <h2>Add Staff</h2>
+                <p>Coming Soon...</p>
+            </div>
+
+            <!-- Assign Staff -->
+            <div v-if="adminPage === 'assign-staff'" class="card shadow p-4">
+                <h2>Assign Staff</h2>
+                <p>Coming Soon...</p>
+            </div>
+
+            <!-- Bookings -->
+            <div v-if="adminPage === 'bookings'" class="card shadow p-4">
+                <h2>Bookings</h2>
+                <p>Coming Soon...</p>
+            </div>
+
+            <!-- Search -->
+            <div v-if="adminPage === 'search'" class="card shadow p-4">
+                <h2>Search</h2>
+                <p>Coming Soon...</p>
+            </div>
+
+        </div>
+
     </div>
+
+</div>
+
+
 
     <!-- Staff Dashboard -->
     <div v-if="currentPage === 'staff-dashboard'" class="card shadow-lg p-4 mx-auto mt-4 border-0" style="max-width: 700px; border-radius:20px;">
