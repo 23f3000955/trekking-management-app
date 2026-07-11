@@ -78,6 +78,81 @@ def get_treks():
     return jsonify(trek_list)
 
 
+
+@app.route("/staff/assigned_treks")
+def staff_assigned_treks():
+
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}), 401
+
+    if session["role"] != "staff":
+        return jsonify({"message": "Access denied"}), 403
+
+    treks = Trek.query.filter_by(staff_id=session["user_id"]).all()
+
+    result = []
+
+    for trek in treks:
+
+        participant_count = Booking.query.filter_by(
+            trek_id=trek.id
+        ).count()
+
+        result.append({
+
+            "id": trek.id,
+
+            "name": trek.trek_name,
+
+            "location": trek.location,
+
+            "status": trek.status,
+
+            "slots": trek.available_slots,
+
+            "participants": participant_count
+
+        })
+
+    return jsonify(result)
+
+
+@app.route("/staff/profile")
+def staff_profile():
+
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}),401
+
+    if session["role"] != "staff":
+        return jsonify({"message":"Access denied"}),403
+
+    staff = User.query.get(session["user_id"])
+
+    treks = Trek.query.filter_by(staff_id=staff.id).all()
+
+    assigned = []
+
+    for trek in treks:
+
+        assigned.append(trek.trek_name)
+
+    return jsonify({
+
+        "id": staff.id,
+
+        "name": staff.name,
+
+        "email": staff.email,
+
+        "contact": getattr(staff, "contact", "Not Available"),
+
+        "active": staff.active,
+
+        "treks": assigned
+
+    })
+
+
 @app.route("/bookings")
 def get_bookings():
 
@@ -184,36 +259,45 @@ def add_staff():
 def get_staffs():
 
     if "user_id" not in session:
-        return jsonify({"message":"Please login first"}),401
+        return jsonify({"message": "Please login first"}), 401
 
     staffs = User.query.filter_by(role="staff").all()
 
-    result=[]
+    result = []
 
     for staff in staffs:
 
-        trek="Not Assigned"
+        trek = "Not Assigned"
 
-        if staff.id:
+        assigned = Trek.query.filter_by(staff_id=staff.id).first()
 
-            assigned=Trek.query.filter_by(staff_id=staff.id).first()
+        if assigned:
 
-            if assigned:
-
-                trek=assigned.trek_name
+            trek = assigned.trek_name
 
         result.append({
 
-            "id":staff.id,
-            "name":staff.name,
-            "email":staff.email,
-            "assigned_trek":trek,
-            "active":staff.active
+            "id": staff.id,
+
+            "name": staff.name,
+
+            "email": staff.email,
+
+            "contact": staff.contact,
+
+            "address": staff.address,
+
+            "experience": staff.experience,
+
+            "emergency_contact": staff.emergency_contact,
+
+            "assigned_trek": trek,
+
+            "active": staff.active
 
         })
 
     return jsonify(result)
-
 
 
 @app.route("/update_staff/<int:id>",methods=["PUT"])

@@ -616,21 +616,42 @@
     <hr>
 
     <input
-        class="form-control mb-3"
-        v-model="staffName"
-        placeholder="Staff Name">
+    class="form-control mb-3"
+    v-model="staffName"
+    placeholder="Staff Name">
 
-    <input
-        class="form-control mb-3"
-        v-model="staffEmail"
-        placeholder="Staff Email">
+<input
+    class="form-control mb-3"
+    v-model="staffEmail"
+    placeholder="Staff Email">
 
-    <input
-        class="form-control mb-3"
-        type="password"
-        v-model="staffPassword"
-        placeholder="Password">
+<input
+    class="form-control mb-3"
+    type="password"
+    v-model="staffPassword"
+    placeholder="Password">
 
+<input
+    class="form-control mb-3"
+    v-model="staffContact"
+    placeholder="Contact Number">
+
+<input
+    class="form-control mb-3"
+    v-model="staffAddress"
+    placeholder="Address">
+
+<input
+    class="form-control mb-3"
+    v-model="staffExperience"
+    placeholder="Experience (e.g. 5 Years)">
+
+<input
+    class="form-control mb-3"
+    v-model="staffEmergencyContact"
+    placeholder="Emergency Contact">
+
+    
     <button
         v-if="!editingStaff"
         class="btn btn-success w-100"
@@ -1202,45 +1223,441 @@
     </ul>
 
 </div>
+</div>
+</div>
+</div>
 
 <!-- ================= STAFF DASHBOARD ================= -->
 
+<!-- ================= STAFF DASHBOARD ================= -->
+
+<div v-if="currentPage === 'staff-dashboard'" class="container-fluid mt-4">
+
+    <div class="row">
+
+        <!-- ================= LEFT SIDEBAR ================= -->
+
+        <div class="col-md-3">
+
+            <div class="card shadow">
+
+                <div class="card-header bg-success text-white">
+
+                    <h4 class="text-center">
+
+                        Staff Panel
+
+                    </h4>
+
+                </div>
+
+                <div class="list-group list-group-flush">
+
+                    <button
+                        class="list-group-item list-group-item-action"
+                        @click="staffPage='dashboard'">
+
+                        Dashboard
+
+                    </button>
+
+                    <button
+                        class="list-group-item list-group-item-action"
+                       @click="staffPage='profile'; loadStaffProfile()">
+
+                        My Profile
+
+                    </button>
+
+                    <button
+                        class="list-group-item list-group-item-action"
+                        @click="staffPage='treks'">
+
+                        Assigned Treks
+
+                    </button>
+
+                    <button
+                        class="list-group-item list-group-item-action"
+                        @click="staffPage='participants'">
+
+                        Participants
+
+                    </button>
+
+                    <button
+                        class="list-group-item list-group-item-action"
+                        @click="staffPage='progress'">
+
+                        Trek Progress
+
+                    </button>
+
+                    <button
+                        class="list-group-item list-group-item-action text-danger"
+                        @click="goTo('home')">
+
+                        Logout
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ================= RIGHT CONTENT ================= -->
+
+        <div class="col-md-9">
+
+            <!-- DASHBOARD -->
+
+            <!-- ================= STAFF DASHBOARD ================= -->
+
 <div
-    v-if="currentPage === 'staff-dashboard'"
-    class="card shadow-lg p-4 mx-auto mt-4 border-0"
-    style="max-width:700px; border-radius:20px;">
+    v-if="staffPage==='dashboard'"
+    class="card shadow p-4">
 
-    <h3 class="text-success mb-4">
+    <h2 class="mb-3">
 
-        Staff Dashboard
+        Welcome Trek Staff 👋
 
-    </h3>
+    </h2>
 
-    <button
-        class="btn btn-success w-100 mb-3">
+    <p class="text-muted mb-4">
 
-        Assigned Treks
+        Manage your assigned treks and participants from one place.
 
-    </button>
+    </p>
 
-    <button
-        class="btn btn-primary w-100 mb-3">
+    <div class="row mb-4">
 
-        Update Trek Status
+        <div class="col-md-3">
 
-    </button>
+            <div class="card border-success text-center shadow-sm">
 
-    <button
-        class="btn btn-secondary w-100"
-        @click="goTo('home')">
+                <div class="card-body">
 
-        Logout
+                    <h6>Assigned Treks</h6>
 
-    </button>
+                    <h2>{{ staffAssignedTreks }}</h2>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="card border-primary text-center shadow-sm">
+
+                <div class="card-body">
+
+                    <h6>Open Treks</h6>
+
+                    <h2>{{ openTreks }}</h2>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="card border-warning text-center shadow-sm">
+
+                <div class="card-body">
+
+                    <h6>Completed</h6>
+
+                    <h2>{{ completedTreks }}</h2>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="card border-danger text-center shadow-sm">
+
+                <div class="card-body">
+
+                    <h6>Participants</h6>
+
+                    <h2>{{ totalParticipants }}</h2>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <hr>
+
+    <h4 class="mb-3">
+
+        Recent Assigned Treks
+
+    </h4>
+
+    <table class="table table-bordered table-hover">
+
+        <thead class="table-success">
+
+            <tr>
+
+                <th>Trek</th>
+
+                <th>Location</th>
+
+                <th>Status</th>
+
+                <th>Available Slots</th>
+
+                <th>Participants</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            <tr
+                v-for="trek in assignedTreks"
+                :key="trek.id">
+
+                <td>{{ trek.name }}</td>
+
+                <td>{{ trek.location }}</td>
+
+                <td>
+
+                    <span class="badge bg-success">
+
+                        {{ trek.status }}
+
+                    </span>
+
+                </td>
+
+                <td>{{ trek.slots }}</td>
+
+                <td>{{ trek.participants }}</td>
+
+            </tr>
+
+            <tr v-if="assignedTreks.length===0">
+
+                <td colspan="5" class="text-center">
+
+                    No treks assigned yet.
+
+                </td>
+
+            </tr>
+
+        </tbody>
+
+    </table>
 
 </div>
 
+           <!-- ================= STAFF PROFILE ================= -->
+
+<div
+    v-if="staffPage==='profile'"
+    class="card shadow p-4">
+
+    <h2 class="mb-4">
+
+        My Profile
+
+    </h2>
+
+    <div class="row">
+
+        <div class="col-md-6">
+
+            <table class="table table-bordered">
+
+                <tr>
+
+                    <th width="40%">Staff ID</th>
+
+                    <td>{{ staffProfile.id }}</td>
+
+                </tr>
+
+                <tr>
+
+                    <th>Name</th>
+
+                    <td>{{ staffProfile.name }}</td>
+
+                </tr>
+
+                <tr>
+
+                    <th>Email</th>
+
+                    <td>{{ staffProfile.email }}</td>
+
+                </tr>
+
+                <tr>
+
+                    <th>Contact</th>
+
+                    <td>{{ staffProfile.contact }}</td>
+
+                </tr>
+
+                <tr>
+
+                    <th>Status</th>
+
+                    <td>
+
+                        <span
+                            class="badge"
+                            :class="staffProfile.active ? 'bg-success' : 'bg-danger'">
+
+                            {{ staffProfile.active ? "Active" : "Inactive" }}
+
+                        </span>
+
+                    </td>
+
+                </tr>
+
+            </table>
+
+        </div>
+
+        <div class="col-md-6">
+
+            <div class="card border-success">
+
+                <div class="card-header bg-success text-white">
+
+                    Assigned Trek(s)
+
+                </div>
+
+                <div class="card-body">
+
+                    <ul
+                        class="list-group"
+                        v-if="staffProfile.treks.length">
+
+                        <li
+                            class="list-group-item"
+                            v-for="trek in staffProfile.treks"
+                            :key="trek.id">
+
+                            {{ trek }}
+
+                        </li>
+
+                    </ul>
+
+                    <div
+                        v-else
+                        class="text-muted">
+
+                        No trek assigned.
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
 </div>
+
+            <!-- ASSIGNED TREKS -->
+
+            <div
+                v-if="staffPage==='treks'"
+                class="card shadow p-4">
+
+                <h2>
+
+                    Assigned Treks
+
+                </h2>
+
+                <hr>
+
+                <p class="text-muted">
+
+                    Assigned trek list will appear here.
+
+                </p>
+
+            </div>
+
+            <!-- PARTICIPANTS -->
+
+            <div
+                v-if="staffPage==='participants'"
+                class="card shadow p-4">
+
+                <h2>
+
+                    Participants
+
+                </h2>
+
+                <hr>
+
+                <p class="text-muted">
+
+                    Trek participants will appear here.
+
+                </p>
+
+            </div>
+
+            <!-- TREK PROGRESS -->
+
+            <div
+                v-if="staffPage==='progress'"
+                class="card shadow p-4">
+
+                <h2>
+
+                    Trek Progress
+
+                </h2>
+
+                <hr>
+
+                <p class="text-muted">
+
+                    Trek progress page will appear here.
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 

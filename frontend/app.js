@@ -19,6 +19,7 @@ data() {
 
         // Admin Dashboard
         adminPage: "dashboard",
+        
 
         // Trek
         trekName: "",
@@ -58,7 +59,48 @@ data() {
         searchText: "",
         searchResults: [],
 
-        chart: null
+        chart: null,
+
+        // staff dashboard
+        staffPage: "dashboard",
+
+
+// Staff Dashboard
+
+assignedTreks: [],
+
+staffAssignedTreks: 0,
+
+openTreks: 0,
+
+completedTreks: 0,
+
+totalParticipants: 0,
+
+
+staffProfile: {
+
+    id: "",
+
+    name: "",
+
+    email: "",
+
+    contact: "",
+
+    active: true,
+
+    treks: [],
+    staffContact: "",
+
+staffAddress: "",
+
+staffExperience: "",
+
+staffEmergencyContact: "",
+
+},
+
 
     }
 
@@ -339,6 +381,64 @@ async toggleUserStatus(userId) {
 
         },
 
+
+async loadStaffDashboard() {
+
+    try {
+
+        const response = await fetch(
+
+            "http://127.0.0.1:5000/staff/assigned_treks",
+
+            {
+
+                credentials: "include"
+
+            }
+
+        )
+
+        const data = await response.json()
+
+        if (!response.ok) {
+
+            this.message = data.message
+
+            return
+
+        }
+
+        this.assignedTreks = data
+
+        this.staffAssignedTreks = data.length
+
+        this.openTreks = data.filter(
+            trek => trek.status === "Open"
+        ).length
+
+        this.completedTreks = data.filter(
+            trek => trek.status === "Completed"
+        ).length
+
+        this.totalParticipants = data.reduce(
+
+            (total, trek) => total + trek.participants,
+
+            0
+
+        )
+
+    }
+
+    catch (error) {
+
+        this.message = "Connection error"
+
+    }
+
+},
+
+
         async registerUser() {
 
             if (
@@ -433,6 +533,14 @@ editStaff(staff) {
 
     this.staffPassword = ""
 
+    this.staffContact = staff.contact
+
+    this.staffAddress = staff.address
+
+    this.staffExperience = staff.experience
+
+    this.staffEmergencyContact = staff.emergency_contact
+
 },
 
 async updateStaff() {
@@ -461,7 +569,15 @@ async updateStaff() {
 
                     email: this.staffEmail,
 
-                    password: this.staffPassword
+                    password: this.staffPassword,
+
+                    contact: this.staffContact,
+
+                    address: this.staffAddress,
+
+                    experience: this.staffExperience,
+
+                    emergency_contact: this.staffEmergencyContact
 
                 })
 
@@ -485,6 +601,14 @@ async updateStaff() {
 
             this.staffPassword = ""
 
+            this.staffContact = ""
+
+            this.staffAddress = ""
+
+            this.staffExperience = ""
+
+            this.staffEmergencyContact = ""
+
             await this.loadStaff()
 
         }
@@ -498,8 +622,6 @@ async updateStaff() {
     }
 
 },
-
-
 
 async deleteStaff(id) {
 
@@ -722,7 +844,8 @@ async loginUser() {
             else if (data.role === "staff") {
 
                 this.currentPage = "staff-dashboard"
-
+                this.staffPage = "dashboard"
+                this.loadStaffDashboard()
             }
 
         }
@@ -920,7 +1043,45 @@ async updateTrek() {
 },
 
 
+async loadStaffProfile() {
 
+    try {
+
+        const response = await fetch(
+
+            "http://127.0.0.1:5000/staff/profile",
+
+            {
+
+                credentials: "include"
+
+            }
+
+        )
+
+        const data = await response.json()
+
+        if (response.ok) {
+
+            this.staffProfile = data
+
+        }
+
+        else {
+
+            this.message = data.message
+
+        }
+
+    }
+
+    catch (error) {
+
+        this.message = "Connection error"
+
+    }
+
+},
 
 
 editTrek(trek) {

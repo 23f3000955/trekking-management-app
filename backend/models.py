@@ -4,12 +4,28 @@ db = SQLAlchemy()
 
 
 class User(db.Model):
+
     id = db.Column(db.Integer, primary_key=True)
+
     name = db.Column(db.String(100), nullable=False)
+
     email = db.Column(db.String(120), unique=True, nullable=False)
+
     password = db.Column(db.String(200), nullable=False)
+
     role = db.Column(db.String(20), nullable=False)
+
     active = db.Column(db.Boolean, default=True)
+
+    # Staff Profile Fields
+
+    contact = db.Column(db.String(20), default="")
+
+    address = db.Column(db.String(200), default="")
+
+    experience = db.Column(db.String(100), default="")
+
+    emergency_contact = db.Column(db.String(20), default="")
 
 
 class Trek(db.Model):
