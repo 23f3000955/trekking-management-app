@@ -106,9 +106,13 @@ def staff_assigned_treks():
 
             "location": trek.location,
 
-            "status": trek.status,
+            "difficulty": trek.difficulty,
+
+            "duration": trek.duration,
 
             "slots": trek.available_slots,
+
+            "status": trek.status,
 
             "participants": participant_count
 
@@ -116,15 +120,44 @@ def staff_assigned_treks():
 
     return jsonify(result)
 
+@app.route("/staff/update_trek/<int:trek_id>", methods=["PUT"])
+def update_staff_trek(trek_id):
+
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}), 401
+
+    if session["role"] != "staff":
+        return jsonify({"message": "Access denied"}), 403
+
+    trek = Trek.query.get(trek_id)
+
+    if not trek:
+        return jsonify({"message": "Trek not found"}), 404
+
+    if trek.staff_id != session["user_id"]:
+        return jsonify({"message": "You are not assigned to this trek"}), 403
+
+    data = request.get_json()
+
+    trek.available_slots = data["slots"]
+    trek.status = data["status"]
+
+    db.session.commit()
+
+    return jsonify({
+
+        "message": "Trek updated successfully"
+
+    })
 
 @app.route("/staff/profile")
 def staff_profile():
 
     if "user_id" not in session:
-        return jsonify({"message": "Please login first"}),401
+        return jsonify({"message": "Please login first"}), 401
 
     if session["role"] != "staff":
-        return jsonify({"message":"Access denied"}),403
+        return jsonify({"message": "Access denied"}), 403
 
     staff = User.query.get(session["user_id"])
 
@@ -133,7 +166,6 @@ def staff_profile():
     assigned = []
 
     for trek in treks:
-
         assigned.append(trek.trek_name)
 
     return jsonify({
@@ -144,13 +176,19 @@ def staff_profile():
 
         "email": staff.email,
 
-        "contact": getattr(staff, "contact", "Not Available"),
+        "contact": staff.contact,
+
+        "address": staff.address,
+
+        "experience": staff.experience,
 
         "active": staff.active,
 
         "treks": assigned
 
     })
+
+
 
 
 @app.route("/bookings")
@@ -226,13 +264,15 @@ def add_staff():
     if session["role"] != "admin":
         return jsonify({"message": "Access denied"}), 403
 
-    data = request.json
+    data = request.get_json()
 
     if User.query.filter_by(email=data["email"]).first():
 
         return jsonify({
+
             "message": "Email already exists"
-        }),400
+
+        }), 400
 
     staff = User(
 
@@ -240,7 +280,12 @@ def add_staff():
         email=data["email"],
         password=data["password"],
         role="staff",
-        active=True
+        active=True,
+
+        contact=data.get("contact", ""),
+        address=data.get("address", ""),
+        experience=data.get("experience", ""),
+        emergency_contact=data.get("emergency_contact", "")
 
     )
 
@@ -249,7 +294,7 @@ def add_staff():
 
     return jsonify({
 
-        "message":"Staff added successfully"
+        "message": "Staff added successfully"
 
     })
 
@@ -267,13 +312,7 @@ def get_staffs():
 
     for staff in staffs:
 
-        trek = "Not Assigned"
-
         assigned = Trek.query.filter_by(staff_id=staff.id).first()
-
-        if assigned:
-
-            trek = assigned.trek_name
 
         result.append({
 
@@ -291,7 +330,9 @@ def get_staffs():
 
             "emergency_contact": staff.emergency_contact,
 
-            "assigned_trek": trek,
+            "assigned_trek": assigned.trek_name if assigned else "Not Assigned",
+
+            "trek_id": assigned.id if assigned else None,
 
             "active": staff.active
 
@@ -299,33 +340,43 @@ def get_staffs():
 
     return jsonify(result)
 
-
-@app.route("/update_staff/<int:id>",methods=["PUT"])
+@app.route("/update_staff/<int:id>", methods=["PUT"])
 def update_staff(id):
 
     if "user_id" not in session:
-        return jsonify({"message":"Please login first"}),401
+        return jsonify({"message": "Please login first"}), 401
 
-    staff=User.query.get(id)
+    if session["role"] != "admin":
+        return jsonify({"message": "Access denied"}), 403
 
-    if not staff:
+    staff = User.query.get(id)
 
-        return jsonify({"message":"Staff not found"}),404
+    if not staff or staff.role != "staff":
+        return jsonify({"message": "Staff not found"}), 404
 
-    data=request.json
+    data = request.get_json()
 
-    staff.name=data["name"]
-    staff.email=data["email"]
-    staff.password=data["password"]
+    staff.name = data.get("name", staff.name)
+    staff.email = data.get("email", staff.email)
+
+    if data.get("password"):
+        staff.password = data["password"]
+
+    staff.contact = data.get("contact", staff.contact)
+    staff.address = data.get("address", staff.address)
+    staff.experience = data.get("experience", staff.experience)
+    staff.emergency_contact = data.get(
+        "emergency_contact",
+        staff.emergency_contact
+    )
 
     db.session.commit()
 
     return jsonify({
 
-        "message":"Staff updated successfully"
+        "message": "Staff updated successfully"
 
     })
-
 
 
 @app.route("/delete_staff/<int:id>",methods=["DELETE"])
@@ -394,6 +445,7 @@ def logout():
 
     return jsonify({"message": "Logged out successfully"})
 
+
 @app.route("/book_trek", methods=["POST"])
 def book_trek():
 
@@ -405,21 +457,45 @@ def book_trek():
 
     data = request.get_json()
 
-    if not data:
-        return jsonify({"message": "Invalid request"}), 400
+    trek = Trek.query.get(data["trek_id"])
 
-    if not data.get("trek_id"):
-        return jsonify({"message": "Trek ID is required"}), 400
+    if not trek:
+        return jsonify({"message": "Trek not found"}), 404
+
+    if trek.status.lower() != "open":
+        return jsonify({"message": "This trek is not open for booking"}), 400
+
+    if trek.available_slots <= 0:
+        return jsonify({"message": "No slots available"}), 400
+
+    existing = Booking.query.filter_by(
+
+        user_id=session["user_id"],
+        trek_id=trek.id
+
+    ).first()
+
+    if existing:
+        return jsonify({"message": "You have already booked this trek"}), 400
 
     booking = Booking(
+
         user_id=session["user_id"],
-        trek_id=data["trek_id"]
+        trek_id=trek.id,
+        booking_status="Booked"
+
     )
+
+    trek.available_slots -= 1
 
     db.session.add(booking)
     db.session.commit()
 
-    return jsonify({"message": "Trek booked successfully"})
+    return jsonify({
+
+        "message": "Trek booked successfully"
+
+    })
 
 @app.route("/check_login")
 def check_login():
@@ -549,6 +625,41 @@ def toggle_user_status(user_id):
     })
 
 
+@app.route("/user/treks")
+def user_treks():
+
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}), 401
+
+    if session["role"] != "user":
+        return jsonify({"message": "Access denied"}), 403
+
+    treks = Trek.query.all()
+
+    result = []
+
+    for trek in treks:
+
+        staff = User.query.get(trek.staff_id) if trek.staff_id else None
+
+        result.append({
+
+            "id": trek.id,
+            "name": trek.trek_name,
+            "location": trek.location,
+            "difficulty": trek.difficulty,
+            "duration": trek.duration,
+            "slots": trek.available_slots,
+            "status": trek.status,
+            "staff": staff.name if staff else "Not Assigned"
+
+        })
+
+    print("========== USER TREKS ==========")
+    print(result)
+    print("================================")
+
+    return jsonify(result)
 # ---------------- DEFAULT USERS ----------------
 
 @app.route("/delete_trek/<int:trek_id>", methods=["DELETE"])
@@ -736,8 +847,165 @@ def unassign_staff():
 
     return jsonify({"message": "Staff unassigned successfully"})
 
+@app.route("/staff/participants")
+def staff_participants():
+
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}), 401
+
+    if session["role"] != "staff":
+        return jsonify({"message": "Access denied"}), 403
+
+    treks = Trek.query.filter_by(staff_id=session["user_id"]).all()
+
+    result = []
+
+    for trek in treks:
+
+        bookings = Booking.query.filter_by(
+            trek_id=trek.id
+        ).all()
+
+        for booking in bookings:
+
+            user = User.query.get(booking.user_id)
+
+            result.append({
+
+                "booking_id": booking.id,
+
+                "trek_name": trek.trek_name,
+
+                "name": user.name,
+
+                "email": user.email,
+
+                "status": booking.booking_status
+
+            })
+
+    return jsonify(result)
+
+@app.route("/user/bookings")
+def user_bookings():
+
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}), 401
+
+    if session["role"] != "user":
+        return jsonify({"message": "Access denied"}), 403
+
+    bookings = Booking.query.filter_by(
+        user_id=session["user_id"]
+    ).all()
+
+    print("========== USER BOOKINGS ==========")
+    print("User ID:", session["user_id"])
+    print("Bookings Found:", len(bookings))
+
+    result = []
+
+    for booking in bookings:
+
+        trek = Trek.query.get(booking.trek_id)
+
+        if trek:
+
+            staff = User.query.get(trek.staff_id) if trek.staff_id else None
+
+            result.append({
+
+                "booking_id": booking.id,
+
+                "trek_name": trek.trek_name,
+
+                "location": trek.location,
+
+                "difficulty": trek.difficulty,
+
+                "duration": trek.duration,
+
+                "status": trek.status,
+
+                "booking_status": booking.booking_status,
+
+                "staff": staff.name if staff else "Not Assigned"
+
+            })
+
+    print(result)
+    print("===================================")
+
+    return jsonify(result)
+@app.route("/user/dashboard")
+def user_dashboard():
+
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}), 401
+
+    if session["role"] != "user":
+        return jsonify({"message": "Access denied"}), 403
+
+    bookings = Booking.query.filter_by(
+        user_id=session["user_id"]
+    ).all()
+
+    total_bookings = len(bookings)
+
+    active_treks = 0
+    completed_treks = 0
+
+    for booking in bookings:
+
+        trek = Trek.query.get(booking.trek_id)
+
+        if trek:
+
+            if trek.status.lower() in ["open", "started"]:
+
+                active_treks += 1
+
+            elif trek.status.lower() == "completed":
+
+                completed_treks += 1
+
+    return jsonify({
+
+        "total_bookings": total_bookings,
+
+        "active_treks": active_treks,
+
+        "completed_treks": completed_treks
+
+    })
 
 
+@app.route("/user/profile")
+def user_profile():
+
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}), 401
+
+    if session["role"] != "user":
+        return jsonify({"message": "Access denied"}), 403
+
+    user = User.query.get(session["user_id"])
+
+    return jsonify({
+
+        "id": user.id,
+
+        "name": user.name,
+
+        "email": user.email,
+
+        "contact": user.contact,
+
+        "address": user.address,
+
+        "active": user.active
+
+    })
 
 
 

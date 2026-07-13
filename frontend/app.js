@@ -5,6 +5,8 @@ createApp({
 
 data() {
 
+    console.log("Vue Created")
+
     return {
 
         currentPage: "home",
@@ -61,13 +63,61 @@ data() {
 
         chart: null,
 
-        // staff dashboard
-        staffPage: "dashboard",
+       // ================= USER DASHBOARD =================
 
+userPage: "dashboard",
 
-// Staff Dashboard
+availableTreks: [],
+
+myBookings: [],
+
+userProfile: {
+
+    id: "",
+
+    name: "",
+
+    email: "",
+
+    contact: "",
+
+    active: true
+
+},
+
+userTotalBookings: 0,
+
+userActiveTreks: 0,
+
+userCompletedTreks: 0,
+
+// User Profile
+
+userProfile: {
+
+    id: "",
+
+    name: "",
+
+    email: "",
+
+    contact: "",
+
+    address: "",
+
+    active: true,
+
+    editingUserProfile: false,
+
+},
+
+// ================= STAFF DASHBOARD =================
+
+staffPage: "dashboard",
 
 assignedTreks: [],
+
+participants: [],
 
 staffAssignedTreks: 0,
 
@@ -76,7 +126,6 @@ openTreks: 0,
 completedTreks: 0,
 
 totalParticipants: 0,
-
 
 staffProfile: {
 
@@ -88,26 +137,25 @@ staffProfile: {
 
     contact: "",
 
+    address: "",
+
+    experience: "",
+
     active: true,
 
-    treks: [],
-    staffContact: "",
+    treks: []
 
-staffAddress: "",
-
-staffExperience: "",
-
-staffEmergencyContact: "",
-
-},
-
+}
 
     }
 
 },
 
-    methods: {
+methods: {
 
+
+
+    
     goTo(page) {
 
     console.log("goTo called with:", page)
@@ -172,6 +220,40 @@ goToAdmin(page) {
     }
 
 },
+
+
+goToStaff(page) {
+
+    this.staffPage = page
+
+    this.message = ""
+
+    if (page === "dashboard") {
+
+        this.loadStaffDashboard()
+
+    }
+
+    else if (page === "profile") {
+
+        this.loadStaffProfile()
+
+    }
+
+    else if (page === "assigned-treks") {
+
+        this.loadStaffDashboard()
+
+    }
+
+    else if (page === "participants") {
+
+        this.loadParticipants()
+
+    }
+
+},
+
 drawChart() {
 
     const canvas = document.getElementById("statsChart")
@@ -769,8 +851,45 @@ async unassignStaff(trekId) {
 
 },
 
+async loadUserTreks() {
 
+    try {
 
+        const response = await fetch(
+
+            "http://127.0.0.1:5000/user/treks",
+
+            {
+
+                credentials: "include"
+
+            }
+
+        )
+
+        const data = await response.json()
+
+        if (response.ok) {
+
+            this.availableTreks = data
+
+        }
+
+        else {
+
+            this.message = data.message
+
+        }
+
+    }
+
+    catch (error) {
+
+        this.message = "Connection error"
+
+    }
+
+},
 
 
 
@@ -791,23 +910,32 @@ async loginUser() {
 
     try {
 
-        const response = await fetch("http://127.0.0.1:5000/login", {
+        const response = await fetch(
 
-            method: "POST",
-            credentials: "include",
+            "http://127.0.0.1:5000/login",
 
-            headers: {
-                "Content-Type": "application/json"
-            },
+            {
 
-            body: JSON.stringify({
+                method: "POST",
 
-                email: this.email,
-                password: this.password
+                credentials: "include",
 
-            })
+                headers: {
 
-        })
+                    "Content-Type": "application/json"
+
+                },
+
+                body: JSON.stringify({
+
+                    email: this.email,
+                    password: this.password
+
+                })
+
+            }
+
+        )
 
         const data = await response.json()
 
@@ -830,22 +958,30 @@ async loginUser() {
 
                 this.currentPage = "user-dashboard"
 
+                this.userPage = "dashboard"
+
+                await this.loadUserTreks()
+
             }
 
             else if (data.role === "admin") {
 
                 this.currentPage = "admin-dashboard"
+
                 this.adminPage = "dashboard"
 
-                this.loadDashboard()
+                await this.loadDashboard()
 
             }
 
             else if (data.role === "staff") {
 
                 this.currentPage = "staff-dashboard"
+
                 this.staffPage = "dashboard"
-                this.loadStaffDashboard()
+
+                await this.loadStaffDashboard()
+
             }
 
         }
@@ -853,6 +989,8 @@ async loginUser() {
     }
 
     catch (error) {
+
+        console.log(error)
 
         this.message = "Connection error"
 
@@ -862,8 +1000,6 @@ async loginUser() {
 
 
 async addTrek() {
-
-    alert("Before Fetch\ncurrentPage = " + this.currentPage + "\nadminPage = " + this.adminPage)
 
     if (
 
@@ -902,9 +1038,6 @@ async addTrek() {
             })
 
         })
-
-        alert("After Fetch\ncurrentPage = " + this.currentPage + "\nadminPage = " + this.adminPage)
-
         const data = await response.json()
 
         this.message = data.message
@@ -920,8 +1053,6 @@ async addTrek() {
             this.currentPage = "admin-dashboard"
             this.adminPage = "add-trek"
 
-            alert("After Setting\ncurrentPage = " + this.currentPage + "\nadminPage = " + this.adminPage)
-
             await this.loadDashboard()
             await this.loadTreks()
 
@@ -931,12 +1062,13 @@ async addTrek() {
 
     catch (error) {
 
-        alert(error)
+        console.log(error)
         this.message = "Connection error"
 
     }
 
 },
+
 
 
 
@@ -1100,6 +1232,43 @@ editTrek(trek) {
 },
 
 
+
+async loadBookings() {
+
+    try {
+
+        const response = await fetch(
+            "http://127.0.0.1:5000/bookings",
+            {
+                credentials: "include"
+            }
+        )
+
+        const data = await response.json()
+
+        if (response.ok) {
+
+            this.bookings = data
+
+        }
+
+        else {
+
+            this.message = data.message
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.log(error)
+
+    }
+
+},
+
+
 async addStaff() {
 
     if (
@@ -1136,7 +1305,11 @@ async addStaff() {
 
                     name: this.staffName,
                     email: this.staffEmail,
-                    password: this.staffPassword
+                    password: this.staffPassword,
+                    contact: this.staffContact,
+                    address: this.staffAddress,
+                    experience: this.staffExperience,
+                    emergency_contact: this.staffEmergencyContact
 
                 })
 
@@ -1153,6 +1326,10 @@ async addStaff() {
             this.staffName = ""
             this.staffEmail = ""
             this.staffPassword = ""
+            this.staffContact = ""
+            this.staffAddress = ""
+            this.staffExperience = ""
+            this.staffEmergencyContact = ""
 
             await this.loadStaff()
 
@@ -1168,7 +1345,371 @@ async addStaff() {
 
 },
 
+async bookTrek(trekId) {
 
+    try {
+
+        const response = await fetch(
+
+            "http://127.0.0.1:5000/book_trek",
+
+            {
+
+                method: "POST",
+
+                credentials: "include",
+
+                headers: {
+
+                    "Content-Type": "application/json"
+
+                },
+
+                body: JSON.stringify({
+
+                    trek_id: trekId
+
+                })
+
+            }
+
+        )
+
+        const data = await response.json()
+
+        this.message = data.message
+
+        alert(data.message)
+
+        if (response.ok) {
+
+            await this.loadUserTreks()
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.log(error)
+
+        this.message = "Connection error"
+
+    }
+
+},
+
+async startTrek(trek) {
+
+    trek.status = "Started"
+
+    await this.updateAssignedTrek(trek)
+
+    await this.loadStaffDashboard()
+
+},
+async completeTrek(trek) {
+
+    trek.status = "Completed"
+
+    await this.updateAssignedTrek(trek)
+
+    await this.loadStaffDashboard()
+
+},
+
+async loadParticipants() {
+
+    try {
+
+        const response = await fetch(
+
+            "http://127.0.0.1:5000/staff/participants",
+
+            {
+
+                credentials: "include"
+
+            }
+
+        )
+
+        const data = await response.json()
+
+        if (response.ok) {
+
+            this.participants = data
+
+        }
+
+        else {
+
+            this.message = data.message
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.log(error)
+
+        this.message = "Connection error"
+
+    }
+
+},
+
+async updateAssignedTrek(trek) {
+
+    try {
+
+        const response = await fetch(
+
+            `http://127.0.0.1:5000/staff/update_trek/${trek.id}`,
+
+            {
+
+                method: "PUT",
+
+                credentials: "include",
+
+                headers: {
+
+                    "Content-Type": "application/json"
+
+                },
+
+                body: JSON.stringify({
+
+                    slots: trek.slots,
+                    status: trek.status
+
+                })
+
+            }
+
+        )
+
+        const data = await response.json()
+
+        this.message = data.message
+
+        if (response.ok) {
+
+            await this.loadStaffDashboard()
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.log(error)
+
+        this.message = "Connection error"
+
+    }
+
+},
+async loadUserDashboard() {
+
+    try {
+
+        const response = await fetch(
+
+            "http://127.0.0.1:5000/user/dashboard",
+
+            {
+
+                credentials: "include"
+
+            }
+
+        )
+
+        const data = await response.json()
+
+        if (response.ok) {
+
+            this.userTotalBookings = data.total_bookings
+
+            this.userActiveTreks = data.active_treks
+
+            this.userCompletedTreks = data.completed_treks
+
+        }
+
+        else {
+
+            this.message = data.message
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.log(error)
+
+        this.message = "Connection error"
+
+    }
+
+},
+
+
+async loadMyBookings() {
+
+    try {
+
+        const response = await fetch(
+
+            "http://127.0.0.1:5000/user/bookings",
+
+            {
+
+                credentials: "include"
+
+            }
+
+        )
+
+        const data = await response.json()
+
+        if (response.ok) {
+
+            this.myBookings = data
+
+        }
+
+        else {
+
+            this.message = data.message
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.log(error)
+
+        this.message = "Connection error"
+
+    }
+
+},
+async loadUserProfile() {
+
+    try {
+
+        const response = await fetch(
+
+            "http://127.0.0.1:5000/user/profile",
+
+            {
+
+                credentials: "include"
+
+            }
+
+        )
+
+        const data = await response.json()
+
+        if (response.ok) {
+
+            this.userProfile = data
+
+        }
+
+        else {
+
+            this.message = data.message
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.log(error)
+
+        this.message = "Connection error"
+
+    }
+
+},
+async updateUserProfile() {
+
+    try {
+
+        const response = await fetch(
+
+            "http://127.0.0.1:5000/user/profile",
+
+            {
+
+                method: "PUT",
+
+                credentials: "include",
+
+                headers: {
+
+                    "Content-Type": "application/json"
+
+                },
+
+                body: JSON.stringify({
+
+                    name: this.userProfile.name,
+
+                    email: this.userProfile.email,
+
+                    contact: this.userProfile.contact,
+
+                    address: this.userProfile.address
+
+                })
+
+            }
+
+        )
+
+        const data = await response.json()
+
+        this.message = data.message
+
+        if (response.ok) {
+
+            this.editingUserProfile = false
+
+            await this.loadUserProfile()
+
+            alert("Profile updated successfully")
+
+        }
+
+        else {
+
+            alert(data.message)
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.log(error)
+
+        this.message = "Connection error"
+
+        alert("Connection error")
+
+    }
+
+},
         async deleteTrek(id) {
 
             const confirmDelete = confirm("Are you sure you want to delete this trek?")
