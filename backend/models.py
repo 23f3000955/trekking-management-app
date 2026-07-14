@@ -44,3 +44,6 @@ class Booking(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     trek_id = db.Column(db.Integer, db.ForeignKey('trek.id'))
     booking_status = db.Column(db.String(20), default="booked")
+
+    # Added for CSV export / booking history
+    booked_on = db.Column(db.String(20), default="")

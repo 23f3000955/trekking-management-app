@@ -71,45 +71,36 @@ availableTreks: [],
 
 myBookings: [],
 
-userProfile: {
-
-    id: "",
-
-    name: "",
-
-    email: "",
-
-    contact: "",
-
-    active: true
-
-},
-
 userTotalBookings: 0,
 
 userActiveTreks: 0,
 
 userCompletedTreks: 0,
 
+editingUserProfile: false,
+// User Search
+userSearchText: "",
+filterLocation: "",
+filterDifficulty: "",
+filterDuration: "",
+userSearchResults: [],
+userSearchDone: false,
+// Export
+exportQueued: false,
+exportTaskId: "",
+exportStatus: "",
+// Admin Jobs
+adminJobMsg: "",
 // User Profile
-
 userProfile: {
-
     id: "",
-
     name: "",
-
     email: "",
-
     contact: "",
-
-    address: "",
-
+     address: "",
     active: true,
-
-    editingUserProfile: false,
-
 },
+
 
 // ================= STAFF DASHBOARD =================
 
@@ -149,6 +140,28 @@ staffProfile: {
 
     }
 
+},
+computed: {
+    uniqueLocations() {
+        return [...new Set(this.userSearchResults.map(t => t.location))].sort()
+    },
+    uniqueDifficulties() {
+        return [...new Set(this.userSearchResults.map(t => t.difficulty))].sort()
+    },
+    uniqueDurations() {
+        return [...new Set(this.userSearchResults.map(t => t.duration))].sort((a, b) => a - b)
+    },
+    filteredSearchResults() {
+        return this.userSearchResults.filter(trek => {
+            const matchesLocation = !this.filterLocation ||
+                trek.location.toLowerCase() === this.filterLocation.toLowerCase()
+            const matchesDifficulty = !this.filterDifficulty ||
+                trek.difficulty.toLowerCase() === this.filterDifficulty.toLowerCase()
+            const matchesDuration = !this.filterDuration ||
+                String(trek.duration) === String(this.filterDuration)
+            return matchesLocation && matchesDifficulty && matchesDuration
+        })
+    }
 },
 
 methods: {
@@ -1749,8 +1762,114 @@ async updateUserProfile() {
 
             }
 
+               },
+        async searchUserTreks() {
+            this.userSearchDone = false
+            try {
+                const params = new URLSearchParams()
+                if (this.userSearchText.trim()) params.append("q", this.userSearchText.trim())
+                const response = await fetch(
+                    `http://127.0.0.1:5000/user/search?${params.toString()}`,
+                    { credentials: "include" }
+                )
+                const data = await response.json()
+                if (response.ok) {
+                    this.userSearchResults = data
+                    this.filterLocation   = ""
+                    this.filterDifficulty = ""
+                    this.filterDuration   = ""
+                } else {
+                    this.message = data.message
+                }
+            } catch (error) {
+                this.message = "Connection error"
+            }
+             this.userSearchDone = true
+        },
+        async triggerAsyncExport() {
+            this.exportQueued = true
+            this.exportStatus = ""
+            try {
+                const response = await fetch(
+                    "http://127.0.0.1:5000/user/export_bookings_async",
+                    { method: "POST", credentials: "include" }
+                )
+                const data = await response.json()
+                this.message = data.message
+                this.exportTaskId = data.task_id || ""
+            } catch (error) {
+                this.message = "Connection error"
+            }
+            this.exportQueued = false
+        },
+        async pollExportStatus() {
+            if (!this.exportTaskId) return
+            try {
+                const response = await fetch(
+                    `http://127.0.0.1:5000/user/export_status/${this.exportTaskId}`,
+                    { credentials: "include" }
+                )
+                const data = await response.json()
+                this.exportStatus = data.status
+            } catch (error) {
+                this.message = "Connection error"
+            }
+        },
+        async triggerAdminJob(type) {
+            const url = type === "reminders"
+                ? "http://127.0.0.1:5000/admin/trigger_reminders"
+                : "http://127.0.0.1:5000/admin/trigger_monthly_report"
+            try {
+                const response = await fetch(url, { method: "POST",
+                    credentials: "include"
+                })
+                const data = await response.json()
+                this.adminJobMsg = data.message
+                setTimeout(() => { this.adminJobMsg = "" }, 4000)
+            } catch (error) {
+                this.adminJobMsg = "Connection error"
+            }
+        },
+        async logout() {
+            try {
+                await fetch("http://127.0.0.1:5000/logout", {
+                    method: "POST",
+                    credentials: "include"
+                })
+            } catch (error) {
+                console.log(error)
+            }
+            this.currentPage = "home"
+            this.userRole = ""
+            this.message = ""
         }
-
+    },
+    async mounted() {
+        try {
+            const response = await fetch("http://127.0.0.1:5000/check_login", {
+                credentials: "include"
+            })
+            const data = await response.json()
+            if (data.logged_in) {
+                this.userRole = data.role
+                if (data.role === "user") {
+                    this.currentPage = "user-dashboard"
+                    this.userPage = "dashboard"
+                    await this.loadUserDashboard()
+                    await this.loadUserTreks()
+                    await this.loadMyBookings()
+                    await this.loadUserProfile()
+                } else if (data.role === "admin") {   this.currentPage = "admin-dashboard"
+                    this.adminPage = "dashboard"
+                    await this.loadDashboard()
+                } else if (data.role === "staff") {
+                    this.currentPage = "staff-dashboard"
+                    this.staffPage = "dashboard"
+                    await this.loadStaffDashboard()
+                }
+            }
+        } catch (error) {
+            console.log(error)
+        }
     }
-
 }).mount("#app")

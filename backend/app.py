@@ -1,7 +1,11 @@
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, send_file
 from flask_cors import CORS
+from flask_caching import Cache
 from config import Config
 from models import db, User, Trek, Booking
+from celery_app import make_celery
+import io, csv
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "trek_management_secret_key"
@@ -10,6 +14,9 @@ CORS(app, supports_credentials=True)
 app.config.from_object(Config)
 
 db.init_app(app)
+cache = Cache(app)
+celery = make_celery(app)
+
 
 
 @app.route("/")
@@ -53,10 +60,12 @@ def add_trek():
     db.session.add(trek)
     db.session.commit()
 
+    cache.delete("all_treks")
+
     return jsonify({"message": "Trek added successfully"})
 
-
 @app.route("/treks")
+@cache.cached(timeout=300, key_prefix="all_treks")
 def get_treks():
 
     treks = Trek.query.all()
@@ -76,8 +85,6 @@ def get_treks():
         })
 
     return jsonify(trek_list)
-
-
 
 @app.route("/staff/assigned_treks")
 def staff_assigned_treks():
@@ -469,21 +476,18 @@ def book_trek():
         return jsonify({"message": "No slots available"}), 400
 
     existing = Booking.query.filter_by(
-
         user_id=session["user_id"],
         trek_id=trek.id
-
     ).first()
 
     if existing:
         return jsonify({"message": "You have already booked this trek"}), 400
 
     booking = Booking(
-
         user_id=session["user_id"],
         trek_id=trek.id,
-        booking_status="Booked"
-
+        booking_status="Booked",
+        booked_on=datetime.now().strftime("%Y-%m-%d")
     )
 
     trek.available_slots -= 1
@@ -492,10 +496,9 @@ def book_trek():
     db.session.commit()
 
     return jsonify({
-
         "message": "Trek booked successfully"
-
     })
+
 
 @app.route("/check_login")
 def check_login():
@@ -625,6 +628,57 @@ def toggle_user_status(user_id):
     })
 
 
+@app.route("/user/search")
+def user_search():
+
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}), 401
+
+    if session["role"] != "user":
+        return jsonify({"message": "Access denied"}), 403
+
+    q = request.args.get("q", "").lower().strip()
+    location = request.args.get("location", "").lower().strip()
+    difficulty = request.args.get("difficulty", "").lower().strip()
+    duration = request.args.get("duration", "").strip()
+
+    treks = Trek.query.all()
+
+    results = []
+
+    for trek in treks:
+
+        if q and q not in trek.trek_name.lower() and q not in trek.location.lower():
+            continue
+
+        if location and location != trek.location.lower():
+            continue
+
+        if difficulty and difficulty != trek.difficulty.lower():
+            continue
+
+        if duration and str(trek.duration) != duration:
+            continue
+
+        staff = User.query.get(trek.staff_id) if trek.staff_id else None
+
+        results.append({
+
+            "id": trek.id,
+            "name": trek.trek_name,
+            "location": trek.location,
+            "difficulty": trek.difficulty,
+            "duration": trek.duration,
+            "slots": trek.available_slots,
+            "status": trek.status,
+            "staff": staff.name if staff else "Not Assigned"
+
+        })
+
+    return jsonify(results)
+
+
+
 @app.route("/user/treks")
 def user_treks():
 
@@ -679,8 +733,9 @@ def delete_trek(trek_id):
     db.session.delete(trek)
     db.session.commit()
 
-    return jsonify({"message": "Trek deleted successfully"})
+    cache.delete("all_treks")
 
+    return jsonify({"message": "Trek deleted successfully"})
 
 @app.route("/update_trek/<int:trek_id>", methods=["PUT"])
 def update_trek(trek_id):
@@ -706,8 +761,9 @@ def update_trek(trek_id):
 
     db.session.commit()
 
-    return jsonify({"message": "Trek updated successfully"})
+    cache.delete("all_treks")
 
+    return jsonify({"message": "Trek updated successfully"})
 
 
 def create_admin():
@@ -980,7 +1036,7 @@ def user_dashboard():
     })
 
 
-@app.route("/user/profile")
+@app.route("/user/profile", methods=["GET", "PUT"])
 def user_profile():
 
     if "user_id" not in session:
@@ -991,28 +1047,129 @@ def user_profile():
 
     user = User.query.get(session["user_id"])
 
+    if request.method == "PUT":
+
+        data = request.get_json()
+
+        user.name = data.get("name", user.name)
+        user.email = data.get("email", user.email)
+        user.contact = data.get("contact", user.contact)
+        user.address = data.get("address", user.address)
+
+        db.session.commit()
+
+        return jsonify({
+            "message": "Profile updated successfully"
+        })
+
     return jsonify({
 
         "id": user.id,
-
         "name": user.name,
-
         "email": user.email,
-
         "contact": user.contact,
-
         "address": user.address,
-
         "active": user.active
 
+    })
+@app.route("/user/export_bookings")
+def export_bookings_download():
+    """Instant CSV download for the logged-in user."""
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}), 401
+    if session["role"] != "user":
+        return jsonify({"message": "Access denied"}), 403
+    user     = User.query.get(session["user_id"])
+    bookings = Booking.query.filter_by(user_id=user.id).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["User ID", "User Name", "Trek Name", "Location",
+                     "Difficulty", "Duration (Days)", "Trek Status",
+                     "Booking Status", "Booked On"])
+    for b in bookings:
+        trek = Trek.query.get(b.trek_id)
+        if not trek:
+            continue
+        writer.writerow([
+            user.id, user.name, trek.trek_name, trek.location,
+            trek.difficulty, trek.duration, trek.status,
+            b.booking_status, b.booked_on or "N/A"
+        ])
+    mem = io.BytesIO(output.getvalue().encode("utf-8"))
+    mem.seek(0)
+    return send_file(
+        mem,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=f"bookings_{user.id}.csv"
+    )
+@app.route("/user/export_bookings_async", methods=["POST"])
+def export_bookings_async():
+    """Queue a Celery CSV export task; email sent on completion."""
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}), 401
+    if session["role"] != "user":
+        return jsonify({"message": "Access denied"}), 403
+    from tasks import export_booking_csv
+    task = export_booking_csv.delay(session["user_id"])
+    return jsonify({
+        "message": "Export queued! You will receive an email when it is ready.",
+        "task_id": task.id
+    })
+
+
+@app.route("/user/export_status/<task_id>")
+def export_task_status(task_id):
+    """Poll Celery task state."""
+    if "user_id" not in session:
+        return jsonify({"message": "Please login first"}), 401
+    from celery.result import AsyncResult
+    result = AsyncResult(task_id, app=celery)
+    return jsonify({
+        "task_id": task_id,
+        "status": result.status,
+        "result": result.result if result.ready() else None
     })
 
 
 
+@app.route("/admin/trigger_reminders", methods=["POST"])
+def trigger_reminders():
+    if "user_id" not in session or session["role"] != "admin":
+        return jsonify({"message": "Access denied"}), 403
+    from tasks import send_daily_reminders
+    task = send_daily_reminders.delay()
+    return jsonify({"message": "Daily reminders queued", "task_id": task.id})
+@app.route("/admin/trigger_monthly_report", methods=["POST"])
+def trigger_monthly_report():
+    if "user_id" not in session or session["role"] != "admin":
+        return jsonify({"message": "Access denied"}), 403
+    from tasks import send_monthly_report
+    task = send_monthly_report.delay()
+    return jsonify({"message": "Monthly report queued", "task_id": task.id})
+
+
+
+def migrate_db():
+    import sqlite3, os
+    db_path = os.path.join(os.path.dirname(__file__), "instance", "trekking.db")
+    try:
+        conn = sqlite3.connect(db_path)
+        cur  = conn.cursor()
+        cur.execute("PRAGMA table_info(booking)")
+        cols = [row[1] for row in cur.fetchall()]
+        if "booked_on" not in cols:
+            cur.execute("ALTER TABLE booking ADD COLUMN booked_on TEXT DEFAULT ''")
+            conn.commit()
+            print("Migration: added booked_on column")
+        conn.close()
+    except Exception as e:
+        print(f"Migration skipped: {e}")
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        migrate_db()
         create_admin()
         create_staff()
-
     app.run(debug=True)
