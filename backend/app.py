@@ -1133,21 +1133,52 @@ def export_task_status(task_id):
 
 
 
+def _schedule_or_send(task, job_label):
+    from zoneinfo import ZoneInfo
+    IST = ZoneInfo("Asia/Kolkata")
+
+    scheduled_time = (request.get_json(silent=True) or {}).get("scheduled_time")
+
+    if scheduled_time:
+        try:
+            run_at = datetime.fromisoformat(scheduled_time).replace(tzinfo=IST)
+        except ValueError:
+            return jsonify({"message": "Invalid scheduled time"}), 400
+
+        countdown = (run_at - datetime.now(IST)).total_seconds()
+
+        if countdown <= 0:
+            return jsonify({"message": "Scheduled time must be in the future"}), 400
+
+        result = task.apply_async(countdown=countdown)
+
+        return jsonify({
+            "message": f"{job_label} scheduled for {scheduled_time}",
+            "task_id": result.id
+        })
+
+    result = task.delay()
+
+    return jsonify({
+        "message": f"{job_label} sent instantly",
+        "task_id": result.id
+    })
+
+
 @app.route("/admin/trigger_reminders", methods=["POST"])
 def trigger_reminders():
     if "user_id" not in session or session["role"] != "admin":
         return jsonify({"message": "Access denied"}), 403
     from tasks import send_daily_reminders
-    task = send_daily_reminders.delay()
-    return jsonify({"message": "Daily reminders queued", "task_id": task.id})
+    return _schedule_or_send(send_daily_reminders, "Daily reminders")
+
+
 @app.route("/admin/trigger_monthly_report", methods=["POST"])
 def trigger_monthly_report():
     if "user_id" not in session or session["role"] != "admin":
         return jsonify({"message": "Access denied"}), 403
     from tasks import send_monthly_report
-    task = send_monthly_report.delay()
-    return jsonify({"message": "Monthly report queued", "task_id": task.id})
-
+    return _schedule_or_send(send_monthly_report, "Monthly report")
 
 
 def migrate_db():

@@ -90,7 +90,10 @@ exportQueued: false,
 exportTaskId: "",
 exportStatus: "",
 // Admin Jobs
-adminJobMsg: "",
+reminderJobMsg: "",
+monthlyJobMsg: "",
+reminderScheduleTime: "",
+monthlyScheduleTime: "",
 // User Profile
 userProfile: {
     id: "",
@@ -1815,21 +1818,43 @@ async updateUserProfile() {
                 this.message = "Connection error"
             }
         },
-        async triggerAdminJob(type) {
+       
+async triggerAdminJob(type, scheduledTime) {
+
             const url = type === "reminders"
                 ? "http://127.0.0.1:5000/admin/trigger_reminders"
                 : "http://127.0.0.1:5000/admin/trigger_monthly_report"
-            try {
-                const response = await fetch(url, { method: "POST",
-                    credentials: "include"
-                })
-                const data = await response.json()
-                this.adminJobMsg = data.message
-                setTimeout(() => { this.adminJobMsg = "" }, 4000)
-            } catch (error) {
-                this.adminJobMsg = "Connection error"
+
+            const msgKey = type === "reminders" ? "reminderJobMsg" : "monthlyJobMsg"
+
+            if (scheduledTime !== undefined && !scheduledTime) {
+                this[msgKey] = "Pick a date and time first"
+                setTimeout(() => { this[msgKey] = "" }, 4000)
+                return
             }
+
+            try {
+
+                const response = await fetch(url, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(scheduledTime ? { scheduled_time: scheduledTime } : {})
+                })
+
+                const data = await response.json()
+                this[msgKey] = data.message
+                setTimeout(() => { this[msgKey] = "" }, 4000)
+
+            } catch (error) {
+
+                this[msgKey] = "Connection error"
+
+            }
+
         },
+
+
         async logout() {
             try {
                 await fetch("http://127.0.0.1:5000/logout", {
@@ -1857,8 +1882,6 @@ async updateUserProfile() {
                     this.userPage = "dashboard"
                     await this.loadUserDashboard()
                     await this.loadUserTreks()
-                    await this.loadMyBookings()
-                    await this.loadUserProfile()
                 } else if (data.role === "admin") {   this.currentPage = "admin-dashboard"
                     this.adminPage = "dashboard"
                     await this.loadDashboard()

@@ -1,5 +1,9 @@
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 class Config:
     SQLALCHEMY_DATABASE_URI = "sqlite:///trekking.db"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -18,6 +22,6 @@ class Config:
     MAIL_SERVER = "smtp.gmail.com"
     MAIL_PORT = 587
     MAIL_USE_TLS = True
-    MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
-    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
-    ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@trek.com")
+    MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "ferrari16boxbox@gmail.com")
+    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "egwq svww eyru jglm")
+    ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "ferrari16boxbox@gmail.com")

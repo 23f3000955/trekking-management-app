@@ -239,7 +239,7 @@ filterLocation=''; filterDifficulty=''; filterDuration=''">
 
                 <h2>
 
-                    Welcome Trekker 👋
+                    Welcome Trekker 
 
                 </h2>
 
@@ -719,7 +719,7 @@ trek.status.toLowerCase()==='completed' ? 'bg-secondary' : 'bg-warning text-dark
 </div>
 </div>
 </div>
-
+</div>
 
 <!-- ================= ADMIN DASHBOARD ================= -->
 
@@ -796,7 +796,7 @@ trek.status.toLowerCase()==='completed' ? 'bg-secondary' : 'bg-warning text-dark
 
 <div v-if="adminPage === 'dashboard'" class="card shadow p-4">
 
-    <h2>Welcome Admin 👋</h2>
+    <h2>Welcome Admin </h2>
 
     <hr>
 
@@ -1784,35 +1784,114 @@ trek.status.toLowerCase()==='completed' ? 'bg-secondary' : 'bg-warning text-dark
 
     </ul>
     <hr>
-    <h4 class="mb-3">Scheduled Jobs</h4>
-    <div class="row g-3">
-        <div class="col-md-6">
-            <div class="card border-primary">
-                <div class="card-body">
-                    <h6 class="card-title">Daily User Reminders</h6>
-                    <p class="card-text text-muted small">Runs automatically at 08:00 IST every day. Sends each user their
-booked trek details via email.</p>
-                    <button class="btn btn-primary btn-sm" @click="triggerAdminJob('reminders')">
-                        Trigger Now (Test)
+
+<h4 class="mb-3">Scheduled Jobs</h4>
+
+<div class="row g-3">
+
+    <div class="col-md-6">
+
+        <div class="card border-primary">
+
+            <div class="card-body">
+
+                <h6 class="card-title">Daily User Reminders</h6>
+
+                <p class="card-text text-muted small">
+                    Runs automatically at 08:00 IST every day.
+                    Sends each user their booked trek details via email.
+                </p>
+
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+
+                    <input
+                        type="datetime-local"
+                        class="form-control form-control-sm"
+                        style="max-width:200px;"
+                        v-model="reminderScheduleTime"
+                    >
+
+                    <button
+                        class="btn btn-outline-primary btn-sm"
+                        @click="triggerAdminJob('reminders', reminderScheduleTime)"
+                    >
+                        Schedule Time
                     </button>
-                    <span v-if="adminJobMsg" class="ms-2 text-success small">{{ adminJobMsg }}</span>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card border-warning">
-                <div class="card-body">
-                    <h6 class="card-title">Monthly Activity Report</h6>
-                    <p class="card-text text-muted small">Runs automatically on 1st of every month. Sends an HTML activity
-report to the admin email.</p>
-                    <button class="btn btn-warning btn-sm" @click="triggerAdminJob('monthly')">
-                        Trigger Now (Test)
+
+                    <button
+                        class="btn btn-primary btn-sm"
+                        @click="triggerAdminJob('reminders')"
+                    >
+                        Send Instantly
                     </button>
-                    <span v-if="adminJobMsg" class="ms-2 text-success small">{{ adminJobMsg }}</span>
+
                 </div>
+
+                <span
+                    v-if="reminderJobMsg"
+                    class="ms-2 text-success small"
+                >
+                    {{ reminderJobMsg }}
+                </span>
+
             </div>
+
         </div>
+
     </div>
+
+    <div class="col-md-6">
+
+        <div class="card border-warning">
+
+            <div class="card-body">
+
+                <h6 class="card-title">Monthly Activity Report</h6>
+
+                <p class="card-text text-muted small">
+                    Runs automatically on the 1st of every month.
+                    Sends an HTML activity report to the admin email.
+                </p>
+
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+
+                    <input
+                        type="datetime-local"
+                        class="form-control form-control-sm"
+                        style="max-width:200px;"
+                        v-model="monthlyScheduleTime"
+                    >
+
+                    <button
+                        class="btn btn-outline-warning btn-sm"
+                        @click="triggerAdminJob('monthly', monthlyScheduleTime)"
+                    >
+                        Schedule Time
+                    </button>
+
+                    <button
+                        class="btn btn-warning btn-sm"
+                        @click="triggerAdminJob('monthly')"
+                    >
+                        Send Instantly
+                    </button>
+
+                </div>
+
+                <span
+                    v-if="monthlyJobMsg"
+                    class="ms-2 text-success small"
+                >
+                    {{ monthlyJobMsg }}
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 </div>
 </div>
 </div>
@@ -1909,8 +1988,7 @@ report to the admin email.</p>
 
     <h2 class="mb-3">
 
-        Welcome Trek Staff 👋
-
+        Welcome Trek Staff 
     </h2>
 
     <p class="text-muted mb-4">
